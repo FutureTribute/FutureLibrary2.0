@@ -1,8 +1,7 @@
 **FutureLibrary 2.0**
 
-Complete rebuild of <a href="github.com/FutureTribute/CourseWork">FutureLibrary</a>
-
-All games data provided by <a href="GiantBomb.com">GiantBomb</a>
+Complete rebuild of <a href="github.com/FutureTribute/CourseWork">FutureLibrary</a><br><br>
+All games data provided by <a href="GiantBomb.com">GiantBomb</a><br><br>
 Used libraries:
 <ul>
   <li><a href="https://github.com/steveYeah/PyBomb">PyBomb</a> (reworked for own usage)</li>
