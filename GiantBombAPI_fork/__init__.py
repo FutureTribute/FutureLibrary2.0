@@ -10,7 +10,7 @@ import mysql.connector
 my_key = ""
 arr = []
 
-cnx = mysql.connector.connect(user="root", password="198237465",
+cnx = mysql.connector.connect(user="root", password="",
                               host="localhost", database="games")
 cursor = cnx.cursor()
 
