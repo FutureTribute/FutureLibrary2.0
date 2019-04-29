@@ -4,9 +4,8 @@ Complete rebuild of <a href="github.com/FutureTribute/CourseWork">FutureLibrary<
 
 All games data provided by <a href="GiantBomb.com">GiantBomb</a>
 Used libraries:
-
-<a href="https://github.com/steveYeah/PyBomb">PyBomb</a> (reworked for own usage)
-
-<a href="https://www.riverbankcomputing.com/software/pyqt/intro/index.html">PyQt5</a>
-
-<a href="https://github.com/mysql/mysql-connector-python">mysql-connector-python</a>
+<ul>
+  <li><a href="https://github.com/steveYeah/PyBomb">PyBomb</a> (reworked for own usage)</li>
+  <li><a href="https://www.riverbankcomputing.com/software/pyqt/intro/index.html">PyQt5</a></li>
+  <li><a href="https://github.com/mysql/mysql-connector-python">mysql-connector-python</a></li>
+</ul>
