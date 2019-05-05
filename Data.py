@@ -4,6 +4,7 @@ Operates with DB: gets data from DB, adds data to DB or removes data from DB
 """
 
 import random
+import operator
 
 from Conn import cursor, cnx
 
@@ -25,7 +26,7 @@ SQL_CHECK_LIBRARY_STATE = "SELECT * FROM library WHERE gameId=%s"
 SQL_CHECK_RATING = "SELECT rating FROM library WHERE gameId=%s"
 
 """ SQL query for getting game by name """
-SQL_SELECT_GAME_BY_NAME = "SELECT * FROM games WHERE name=%s"
+SQL_SELECT_GAME_BY_NAME = "SELECT id FROM games WHERE name=%s"
 
 """ SQL query for getting games for home page of the app """
 SQL_SELECT_GAMES = "SELECT id FROM games LIMIT %s OFFSET %s"
@@ -35,19 +36,19 @@ SQL_INSERT_TO_LIBRARY = "INSERT INTO library (gameId, rating) VALUES (%s, %s)"
 SQL_DELETE_FROM_LIBRARY = "DELETE FROM library WHERE gameId=%s"
 
 """ Gets amount of games in library """
-SQL_SELECT_LIBRARY = "SELECT COUNT(*) FROM library"
+SQL_SELECT_LIBRARY = "SELECT COUNT(id) FROM library"
 
 """ SQL query for getting games for library page of the app """
 SQL_SELECT_GAMES_FROM_LIBRARY = "SELECT gameId FROM library LIMIT %s OFFSET %s"
 
 """ SQL queries for getting games by chosen characteristic """
-SQL_SELECT_GAMES_BY_PLATFORM = "SELECT * FROM games WHERE id IN (SELECT gameId FROM games_and_platforms " \
+SQL_SELECT_GAMES_BY_PLATFORM = "SELECT id FROM games WHERE id IN (SELECT gameId FROM games_and_platforms " \
                                "WHERE platformId = (SELECT id FROM platforms WHERE name=%s)) LIMIT %s OFFSET %s"
-SQL_SELECT_GAMES_BY_GENRES = "SELECT * FROM games WHERE id IN (SELECT gameId FROM games_and_genres " \
+SQL_SELECT_GAMES_BY_GENRE = "SELECT id FROM games WHERE id IN (SELECT gameId FROM games_and_genres " \
                                "WHERE genreId = (SELECT id FROM genres WHERE name=%s)) LIMIT %s OFFSET %s"
-SQL_SELECT_GAMES_BY_THEME = "SELECT * FROM games WHERE id IN (SELECT gameId FROM games_and_themes " \
+SQL_SELECT_GAMES_BY_THEME = "SELECT id FROM games WHERE id IN (SELECT gameId FROM games_and_themes " \
                                "WHERE themeId = (SELECT id FROM themes WHERE name=%s)) LIMIT %s OFFSET %s"
-SQL_SELECT_GAMES_BY_COMPANY = "SELECT * FROM games WHERE id IN (SELECT gameId FROM games_and_companies " \
+SQL_SELECT_GAMES_BY_COMPANY = "SELECT id FROM games WHERE id IN (SELECT gameId FROM games_and_companies " \
                                "WHERE relation=%s AND companyId = (SELECT id FROM companies WHERE name=%s)) " \
                               "LIMIT %s OFFSET %s"
 
@@ -56,11 +57,14 @@ cursor.execute("SELECT MAX(id) FROM games")
 MAX_ID = cursor.fetchall()[0][0]
 
 """ Gets amount of games in DB """
-cursor.execute("SELECT COUNT(*) FROM games")
+cursor.execute("SELECT COUNT(id) FROM games")
 NUMBER_OF_GAMES = cursor.fetchall()[0][0]
 
 """ Stores amount of games in library; changes only when it's needed """
 LEN_OF_LIBRARY = 0
+
+""" Stores amount of recommended games; changes only when it's needed """
+LEN_OF_RECOMMENDATIONS = 0
 
 
 class Game:
@@ -156,8 +160,8 @@ def random_game():
         try:
             game = Game(game_id)
             return game
-        except Exception:
-            print("Random ", game_id, "; No such an id", sep="")
+        except IndexError:
+            pass
 
 
 def game_by_name(string):
@@ -171,8 +175,7 @@ def game_by_name(string):
     try:
         data = cursor.fetchall()[0]
         return Game(data[0])
-    except Exception:
-        print("Game not found")
+    except IndexError:
         return None
 
 
@@ -218,7 +221,7 @@ def chosen_characteristic(text, characteristic, page=None, items=None):
     :param characteristic: Parameter of the game, e.g. genre, publisher, etc.
     :param page: Page in the app
     :param items: Amount of items per page
-    :return: int ot list of Game objects
+    :return: int or list of Game objects
     """
     if page is None:
         limit = NUMBER_OF_GAMES
@@ -230,7 +233,7 @@ def chosen_characteristic(text, characteristic, page=None, items=None):
     if characteristic == "platform":
         cursor.execute(SQL_SELECT_GAMES_BY_PLATFORM, (text, limit, offset))
     elif characteristic == "genre":
-        cursor.execute(SQL_SELECT_GAMES_BY_GENRES, (text, limit, offset))
+        cursor.execute(SQL_SELECT_GAMES_BY_GENRE, (text, limit, offset))
     elif characteristic == "theme":
         cursor.execute(SQL_SELECT_GAMES_BY_THEME, (text, limit, offset))
     elif characteristic == "developer":
@@ -241,3 +244,63 @@ def chosen_characteristic(text, characteristic, page=None, items=None):
     if page is None:
         return len(data)
     return [Game(game[0]) for game in data]
+
+
+def analyze_library():
+    """
+    Analyzes library and returns recommendations
+
+    :return: list of Game objects
+    """
+
+    def fill_dicts(items, dict_of, rating):
+        """ On-place function used for filling rating dicts """
+        for item in items:
+            if item in dict_of.keys():
+                dict_of[item] += rating
+            else:
+                dict_of[item] = rating
+
+    global LEN_OF_RECOMMENDATIONS
+    cursor.execute(SQL_SELECT_GAMES_FROM_LIBRARY, (NUMBER_OF_GAMES, 0))
+    game_ids = [item[0] for item in cursor.fetchall()]
+    if len(game_ids) == 0:
+        LEN_OF_RECOMMENDATIONS = 0
+        return []
+    games = [Game(game) for game in game_ids]
+    rating_dicts = [{}, {}]
+    for game in games:
+        game.rating = game.get_rating()
+        fill_dicts(game.genres, rating_dicts[0], game.rating)
+        fill_dicts(game.platforms, rating_dicts[1], game.rating)
+    max_values = []
+    for i in range(2):
+        try:
+            max_values.append(max(rating_dicts[i].items(), key=operator.itemgetter(1))[0])
+        except ValueError:
+            max_values.append(None)
+    returned_platform_ids = []
+    returned_genre_ids = []
+    if max_values[1] is not None:
+        cursor.execute(SQL_SELECT_GAMES_BY_PLATFORM, (max_values[1], NUMBER_OF_GAMES, 0))
+        returned_platform_ids = [item[0] for item in cursor.fetchall()]
+        returned_platform_ids = list(set(returned_platform_ids) - set(game_ids))
+    if max_values[0] is not None:
+        cursor.execute(SQL_SELECT_GAMES_BY_GENRE, (max_values[0], NUMBER_OF_GAMES, 0))
+        returned_genre_ids = [item[0] for item in cursor.fetchall()]
+        returned_genre_ids = list(set(returned_genre_ids) - set(game_ids))
+    if len(returned_platform_ids) > 0:
+        if len(returned_genre_ids) > 0:
+            returned_ids = list(set(returned_platform_ids).intersection(returned_genre_ids))
+        else:
+            returned_ids = returned_platform_ids
+    elif len(returned_genre_ids) > 0:
+        returned_ids = returned_genre_ids
+    else:
+        LEN_OF_RECOMMENDATIONS = 0
+        return []
+    if len(returned_ids) > 14:
+        returned_ids = random.choices(returned_ids, k=14)
+    LEN_OF_RECOMMENDATIONS = len(returned_ids)
+    return [Game(game) for game in returned_ids]
+

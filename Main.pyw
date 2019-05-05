@@ -6,9 +6,9 @@ GUI implementation of the app
 import sys
 
 from PyQt5 import uic
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QListWidgetItem, QDialog
-from PyQt5.QtGui import QPixmap, QIcon
+from PyQt5.QtGui import QPixmap
 
 import Data
 
@@ -22,17 +22,18 @@ class Main(QMainWindow):
         self.setFixedSize(self.width(), self.height())
         self.setWindowTitle("Future Library")
 
+        self.ui.notFound.hide()
+
         self.ui.showMenu.clicked.connect(self.menu_show)
         self.ui.hideMenu.clicked.connect(self.menu_hide)
         self.ui.homeButton.clicked.connect(self.home)
         self.ui.libraryButton.clicked.connect(self.library)
-        self.ui.recommendationsButton.clicked.connect(self.recommendations)  # UNDER CONSTRUCTION
-        self.ui.recommendationsButton.setEnabled(False)  # UNDER CONSTRUCTION
+        self.ui.recommendationsButton.clicked.connect(self.recommendations)
         self.ui.randomButton.clicked.connect(self.get_random_game)
         self.ui.aboutButton.clicked.connect(self.about)
         self.ui.searchButton.clicked.connect(self.search)
         self.ui.page.textEdited.connect(self.page_enter)
-        self.ui.gamesList.itemPressed.connect(self.game_chosen)
+        self.ui.gamesList.itemClicked.connect(self.game_chosen)
         self.ui.changePageButton.clicked.connect(self.page_change)
         self.ui.firstPage.clicked.connect(self.first)
         self.ui.prevPage.clicked.connect(self.previous)
@@ -173,9 +174,11 @@ class Main(QMainWindow):
             self.games_list()
         else:
             self.current_work_state = "recommendations"
+            self.temp_window_name = "Future Library - Recommendations"
             self.current_page = 1
             self.ui.page.setText("1")
             self.games_list()
+        self.setWindowTitle(self.temp_window_name)
 
     def games_list(self):
         """ Generates games list for current page and operates state of navigation buttons"""
@@ -188,7 +191,7 @@ class Main(QMainWindow):
             self.current_games = Data.library_page(self.current_page, self.items_per_page)
         elif self.current_work_state == "recommendations":
             max_limit = 1
-            self.current_games = []
+            self.current_games = Data.analyze_library()
         elif self.current_work_state == "characteristic":
             max_limit = self.characteristic_pages
             self.current_games = Data.chosen_characteristic(self.characteristic_text, self.characteristic,
@@ -208,23 +211,32 @@ class Main(QMainWindow):
         else:
             self.ui.nextPage.setEnabled(True)
             self.ui.lastPage.setEnabled(True)
+        if max_limit == 1:
+            self.ui.page.setEnabled(False)
+            self.ui.changePageButton.setEnabled(False)
+        else:
+            self.ui.page.setEnabled(True)
+            self.ui.changePageButton.setEnabled(True)
         self.menu_hide()
         self.ui.gamePanel.hide()
         self.ui.gamesListPanel.show()
         for i in range(len(self.current_games)):
             game = self.current_games[i]
             if self.current_work_state == "library":
-                self.ui.gamesList.addItem(QListWidgetItem(str((self.current_page-1)*self.items_per_page + i+1) + ". " + game.name +
-                                                          "\n" + "Release date: " + str(game.release_date) +
-                                                          "   Your rating: " + str(game.get_rating()) + "/10"))
+                string = game.name + "\nRelease date: " + str(game.release_date) + \
+                         "   Your rating: " + str(game.get_rating()) + "/10"
+                item = QListWidgetItem(string)
+                item.setData(737, game)
+                self.ui.gamesList.addItem(item)
             else:
-                self.ui.gamesList.addItem(QListWidgetItem(str((self.current_page-1)*self.items_per_page + i+1) + ". " + game.name +
-                                                          "\n" + "Release date: " + str(game.release_date)))
+                string = game.name + "\nRelease date: " + str(game.release_date)
+                item = QListWidgetItem(string)
+                item.setData(737, game)
+                self.ui.gamesList.addItem(item)
 
     def game_chosen(self, item):
         """ Detects which game was chosen in game list """
-        game_number = int(item.text().split(".")[0])-1 - (self.current_page-1)*self.items_per_page
-        self.current_game = self.current_games[game_number]
+        self.current_game = item.data(737)
         self.set_game_info(self.current_game)
 
     @staticmethod
@@ -249,6 +261,12 @@ class Main(QMainWindow):
         if game is not None:
             self.current_game = game
             self.set_game_info(self.current_game)
+        else:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            self.ui.notFound.show()
+            timer.timeout.connect(self.ui.notFound.hide)
+            timer.start(3000)
 
     def set_game_info(self, game):
         """ Fills game tab """
@@ -277,12 +295,12 @@ class Main(QMainWindow):
             if add_message.exec_():
                 self.current_game.add_to_library(add_message.value)
                 self.set_game_info(self.current_game)
-                self.temp_library_flag = True
+                if self.current_work_state in ["library", "recommendations"]:
+                    self.temp_library_flag = True
         elif link == "#remove":
             self.current_game.remove_from_library()
             self.set_game_info(self.current_game)
-            if self.current_work_state == "library":
-                self.current_work_state = "temp"
+            if self.current_work_state in ["library", "recommendations"]:
                 self.temp_library_flag = True
 
     def platforms(self, link):
@@ -338,8 +356,12 @@ class Main(QMainWindow):
         """ Closes game tab """
         self.ui.gamePanel.hide()
         if self.temp_library_flag:
-            self.current_work_state = "temp"
-            self.library()
+            if self.current_work_state == "library":
+                self.current_work_state = "temp"
+                self.library()
+            elif self.current_work_state == "recommendations":
+                self.current_work_state = "temp"
+                self.recommendations()
         else:
             self.ui.gamesListPanel.show()
         self.setWindowTitle(self.temp_window_name)
