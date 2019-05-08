@@ -168,7 +168,6 @@ class Main(QMainWindow):
     def recommendations(self):
         """
         Recommendations tab function
-        UNDER CONSTRUCTION
         """
         if self.current_work_state == "recommendations":
             self.games_list()
