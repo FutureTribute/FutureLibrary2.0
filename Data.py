@@ -69,7 +69,7 @@ LEN_OF_RECOMMENDATIONS = 0
 
 class Game:
     """
-    Main entity class. Used for storing info about currently viewable game and
+    Main entity class. Used for storing info about concrete game and
     operating with this info
     """
     def __init__(self, game_id):

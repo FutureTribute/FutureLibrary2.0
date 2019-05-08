@@ -375,7 +375,6 @@ class AddDialog(QDialog):
         self.ui = uic.loadUi("dialogTrue.ui", self)
         self.ui.confirm.clicked.connect(self.confirm_func)
         self.setWindowTitle("Rate game")
-        # self.setWindowIcon(QIcon())
         self.setFixedSize(self.width(), self.height())
         # self.ui.without.linkActivated.connect(self.without_func)
         self.value = ""

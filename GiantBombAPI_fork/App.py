@@ -59,19 +59,13 @@ def platforms():
     sql = "INSERT INTO platforms (name, abbreviation, deck, giantBombPlatformId) VALUES (%s, %s, %s, %s)"
     client = PlatformClient(my_key)
     arr = []
-    # skip_counter = 0
     for i in range(1, 176):
         try:
             x = client.fetch(i).results
-            # skip_counter = 0
             print(x["name"], end="; ")
             arr.append((x["name"], x["abbreviation"], x["deck"], x["id"]))
         except Exception as e:
             pass
-            # skip_counter += 1
-            # if skip_counter == 10:
-            #     print("   ---Done---")
-            #     break
     print("   ---Done---")
     for i in arr:
         print("+", end="")
